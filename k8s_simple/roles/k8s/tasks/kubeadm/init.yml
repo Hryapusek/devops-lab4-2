@@ -1,0 +1,48 @@
+---
+- name: kubeadm init
+  become:      yes
+  become_user: root
+  become_flags: "-"
+  block:
+
+    - name: kubeadm init
+      shell: "kubeadm init --config {{KUBEADM_CONFIG_FILE}}"
+      register: kubeadm_init_output
+
+    - name: dbg info
+      debug:
+        msg: "{{ kubeadm_init_output }}"
+
+    - name: setup config
+      block:
+
+        - name: delete .kube directory
+          file:
+            state: absent
+            path: "{{ K8S_USER_CONFIG_DIR }}"
+
+        - name: mkdir user k8s dir
+          file:
+            state: directory
+            path: "{{ K8S_USER_CONFIG_DIR }}"
+            group: 1000
+            owner: 1000
+
+        # when used copy module got  "msg": "Could not find or access '/etc/kubernetes/admin.conf' on the Ansible Controller.
+        - name: copy config to user dir
+          shell: "cp /etc/kubernetes/admin.conf {{ K8S_USER_CONFIG_DIR }}/config"
+
+        - name: copy kubernets config to user dir
+          file:
+            path: "{{ K8S_USER_CONFIG_DIR }}/config"
+            owner: 1000
+            group: 1000
+
+        - name: extract data for kubeadm join
+          set_fact:
+            k8s_join_token: "{{  kubeadm_init_output.stdout | regex_search('--token (.*) ', '\\1') | first | trim }}"
+            k8s_join_discovery_token: "{{  kubeadm_init_output.stdout | regex_search('--discovery-token-ca-cert-hash (sha256:[a-zA-Z0-9]*) ', '\\1') | first | trim }}"
+            k8s_join_address: "{{  kubeadm_init_output.stdout | regex_search('kubeadm join (.*) --', '\\1') | first | trim }}"
+
+      when: kubeadm_init_output.rc == 0
+

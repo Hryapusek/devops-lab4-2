@@ -1,0 +1,26 @@
+# По умолчанию установка
+K8S_DESIRE_STATE: present
+#K8S_DESIRE_STATE: absent
+
+#REGISTRY_CREDS_BASE64: "результат команды. не забудь подставить свои креды: echo -n 'u:p' | base64"
+REGISTRY_MASK:     "192.168.0.1/24"
+REGISTRY_NAME:     "192.168.0.133:5050"
+REGISTRY_CREDS_BASE64: "cm9vdDp0ZXN0MTIzNDU2"
+CRI:
+  CRIO_VERSION:      v1.29.0
+  CRIO_REG_CERT_DIR: "/etc/containers/certs.d/{{ REGISTRY_NAME }}"
+  CRIO_SOCKET: "unix:///var/run/crio/crio.sock"
+
+IPVS_ENABLE: True
+
+K8S_VERSION: v1.29
+K8S_VERSION_APT_PKG: 1.29.0-1.1
+
+K8S_POD_NETWORK: "10.244.0.0/16"
+K8S_CLUSTER_DOMAIN: "cluster.test"
+KUBEADM_CONFIG_FILE: "/etc/kubeadm_config.yaml"
+
+K8S_USER_CONFIG_DIR: "{{ ansible_env.HOME }}/.kube"
+
+SSH_DIR_PATH: "{{ ansible_env.HOME }}/.ssh/id_rsa"
+

@@ -1,0 +1,108 @@
+---
+- name: install cri-o
+  become:      yes
+  become_user: root
+  become_flags: "-"
+  block:
+
+  # /etc/apt/keyrings может не быть для некоторых дистров. поэтому создаем
+  - name: mkdir keyrings
+    ansible.builtin.file:
+      path: /etc/apt/keyrings
+      state: directory
+      recurse: yes
+      owner: root
+      group: root
+
+  - name: GPG cri key.
+    apt_key:
+      url:   "https://pkgs.k8s.io/addons:/cri-o:/prerelease:/main/deb/Release.key"
+      state: "{{ K8S_DESIRE_STATE }}"
+      keyring: "/etc/apt/keyrings/cri-o-apt-keyring.gpg"
+
+  - name: cri repository
+    ansible.builtin.apt_repository:
+      repo:  "deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://pkgs.k8s.io/addons:/cri-o:/prerelease:/main/deb/ /"
+      state: "{{ K8S_DESIRE_STATE }}"
+      filename: "cri-o"
+
+  - name: "{{ K8S_DESIRE_STATE }} deps "
+    apt:
+      name:  "{{item}}"
+      state: "{{ K8S_DESIRE_STATE }}"
+      update_cache: yes
+    with_items:
+      - cri-o
+      # - containernetworking-plugins # conflict with kubernetes-cni
+
+  - name: install crictl
+    block:
+    - name: crictl
+      ansible.builtin.unarchive:
+        src: "https://github.com/kubernetes-sigs/cri-tools/releases/download/{{CRI.CRIO_VERSION}}/crictl-{{CRI.CRIO_VERSION}}-linux-amd64.tar.gz"
+        dest: /usr/bin/
+        remote_src: yes
+    - name: add crictl bash_complition
+      shell: crictl completion > /etc/bash_completion.d/crictl
+    when: K8S_DESIRE_STATE == "present"
+
+  - name: remove crictl
+    block:
+    - name: remove crictl files
+      file:
+        path:  "{{ item }}"
+        state: absent
+      with_items:
+        - /usr/bin/crictl
+        - /etc/bash_completion.d/crictl
+        - /etc/crio
+        - /etc/crictl.yaml
+    when: K8S_DESIRE_STATE == "absent"
+
+  - name: registry interaction and start crio
+    block:
+
+    - name: crictl conf
+      copy:
+        content: |
+          runtime-endpoint: "{{CRI.CRIO_SOCKET}}"
+          timeout: 0
+          debug: false
+        dest: "/etc/crictl.yaml"
+
+    - name: copy registry auth file
+      template:
+        src: registry_auth.j2
+        dest: /etc/crio/registry_auth.json
+
+    - name: copy registries conf
+      template:
+        src: 12-registries.j2
+        dest: /etc/crio/crio.conf.d/12-registries.conf
+
+    - name: crio configuration file
+      copy:
+        src: "{{item}}"
+        dest: /etc/crio/crio.conf.d
+      with_items:
+        - 11-registry-auth.conf
+
+    - name: run crio service.
+      systemd_service:
+        name: "{{ item }}"
+        state: started
+        enabled: yes
+      with_items:
+        - crio
+        - cri-o
+
+    - name: check crictl
+      shell: "crictl --runtime-endpoint {{ CRI.CRIO_SOCKET }} version"
+      register: crictl_info
+
+    - name: show crictl status
+      debug:
+        msg: "{{crictl_info.stdout}}"
+
+    when: K8S_DESIRE_STATE == "present"
+

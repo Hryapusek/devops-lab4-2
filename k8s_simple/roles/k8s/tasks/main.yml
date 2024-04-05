@@ -1,0 +1,69 @@
+---
+- name: install container runtime interface
+  import_tasks: cri.yml
+  tags:
+    - k8s_cri
+
+- name: check ports
+  import_tasks: check_ports.yml
+  tags:
+    - k8s_check_required_ports
+
+- name: prerequisites sysctl and modules
+  import_tasks: modules_sysctl.yml
+  tags:
+    - k8s_prerequisites_modules_n_sysctl
+
+- name: Installing kubeadm, kubelet and kubectl
+  import_tasks: install_k8s_pkgs.yml
+  tags:
+    - k8s_install_kubeadm_kubelet_kubectl
+
+# init and join
+- name: k8s initialization
+  import_tasks: kubeadm_init.yml
+  tags:
+    - k8s_kube_bootstrap
+
+- name: k8s network plugin
+  tags:
+    - k8s_approve_certs
+  block:
+
+  - name: get csr
+    shell: "kubectl get csr"
+    register: k8s_state_certs_approve
+
+  - name: show dbg
+    debug:
+      msg: "{{ k8s_state_certs_approve.stdout_lines }}"
+
+  - name: get csr
+    shell: "kubectl get csr | grep Pending | awk '{print $1}' | xargs -r kubectl certificate approve"
+    register: k8s_state_certs_approve
+
+  - name: show dbg
+    debug:
+      msg: "{{ k8s_state_certs_approve.stdout_lines }}"
+  when: inventory_hostname == "master1"
+
+- name: k8s network plugin
+  import_tasks: "./plugins/network/flannel.yml"
+  tags:
+    - k8s_add_network_plugin
+  when: inventory_hostname == "master1"
+
+- name: k8s get all
+  tags:
+    - k8s_debug_get_all
+  block:
+
+  - name: show dbg
+    shell: "kubectl get all -A -o wide --show-labels"
+    register: k8s_state_get_all_info
+
+  - name: show dbg
+    debug:
+      msg: "{{ k8s_state_get_all_info.stdout_lines }}"
+  when: inventory_hostname == "master1"
+

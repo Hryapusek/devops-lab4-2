@@ -1,0 +1,35 @@
+
+---
+- name: kubeadm reset
+  become: yes
+  become_user: root
+  become_flags: "-"
+  block:
+
+    - name: kubeadm reset
+      shell: "kubeadm reset -f --cri-socket={{CRI.CRIO_SOCKET}}"
+      register: kubeadm_reset_output
+
+    - name: dbg info
+      debug:
+        msg: "{{ kubeadm_reset_output }}"
+
+    - name: ipvsadm clear
+      shell: ipvsadm --clear
+      when: IPVS_ENABLE
+
+    - name: clear cni dir
+      file:
+        path:  "{{ item }}"
+        state: absent
+      with_items:
+        - /var/lib/cni/flannel
+        - /var/lib/cni/networks/cbr0
+
+    - name: clear cni interface
+      ignore_errors: yes
+      shell: "ip link delete {{ item }}"
+      with_items:
+        - cni0
+        - flannel.1
+

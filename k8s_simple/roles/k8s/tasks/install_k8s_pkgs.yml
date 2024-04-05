@@ -1,0 +1,66 @@
+---
+- name: Installing kubeadm, kubelet and kubectl
+  become:      yes
+  become_user: root
+  become_flags: "-"
+  block:
+
+    - name: create keyring dir
+      file:
+        path: /etc/apt/keyrings
+        recurse: true
+        state: directory
+
+    - name: GPG k8s key.
+      apt_key:
+        state: "{{ K8S_DESIRE_STATE }}"
+        url: "https://pkgs.k8s.io/core:/stable:/{{K8S_VERSION}}/deb/Release.key"
+        keyring: "/etc/apt/keyrings/kubernetes-apt-keyring.gpg"
+
+    - name: k8s apt repository.
+      apt_repository:
+        state: "{{ K8S_DESIRE_STATE }}"
+        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/{{K8S_VERSION}}/deb/ /"
+        filename: "kubernetes"
+
+    - name: k8s deps.
+      apt:
+        state: "{{ K8S_DESIRE_STATE }}"
+        name: "{{ item }}"
+        update_cache: yes
+      with_items:
+        - "kubelet"
+        - "kubeadm" # для присоединения узлов нужен на каждом хосте
+
+    - name: install kubectl
+      block:
+      - name: kubectl
+        apt:
+          name: kubectl
+          state: present
+          update_cache: yes
+      - name: add completion for kube
+        shell: "{{item}} completion bash > /etc/bash_completion.d/{{item}}"
+        with_items:
+          - kubectl
+          - kubeadm
+      when: K8S_DESIRE_STATE == "present" and
+            inventory_hostname in groups['master_nodes']
+
+    - name: remove kubectl
+      block:
+      - name: kubectl
+        apt:
+          name: kubectl
+          state: absent
+          update_cache: yes
+      - name: Remove bash_completion
+        file:
+          path: "/etc/bash_completion.d/{{item}}"
+          state: absent
+        with_items:
+          - kubectl
+          - kubeadm
+      when: K8S_DESIRE_STATE == "absent" and
+            inventory_hostname in groups['master_nodes']
+

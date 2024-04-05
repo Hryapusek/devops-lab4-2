@@ -1,0 +1,32 @@
+---
+- name: kubeadm initialization
+  become:      yes
+  become_user: root
+  become_flags: "-"
+  block:
+
+  - name: kubeadm init
+    import_tasks: ./kubeadm/reset.yml
+    when: K8S_DESIRE_STATE == "absent"
+
+  - name: copy kubeadm config
+    template:
+      src: kubeadm_config.j2
+      dest: "{{ KUBEADM_CONFIG_FILE }}"
+      owner: root
+      group: root
+      mode: '0400'
+    run_once: yes
+    when: inventory_hostname == "master1" and
+          K8S_DESIRE_STATE == "present"
+
+  - name: kubeadm init
+    import_tasks: ./kubeadm/init.yml
+    run_once: yes
+    when: inventory_hostname == "master1" and
+          K8S_DESIRE_STATE == "present"
+
+  - name: kubeadm join
+    import_tasks: "./kubeadm/join.yml"
+    when: inventory_hostname in groups['all'] | difference(groups['master_nodes']) and
+          K8S_DESIRE_STATE == "present"

@@ -1,0 +1,12 @@
+---
+- name: install network plugin
+  block:
+
+    - name: download flannel manifest
+      get_url:
+        url:  https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+        dest: "{{ K8S_USER_CONFIG_DIR }}/kube-flannel.yml"
+
+    - name: run plugin
+      shell: "kubectl apply -f {{ K8S_USER_CONFIG_DIR }}/kube-flannel.yml"
+

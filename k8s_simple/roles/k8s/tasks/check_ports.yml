@@ -1,0 +1,25 @@
+---
+- name: check required ports.
+  block:
+
+    - name: check port
+      shell: nc -z {{ansible_default_ipv4.address}} {{item}}
+      with_items:
+        - 6443
+      ignore_errors: yes
+      register: port_info
+
+    - name: dbg info
+      debug:
+        msg: >-
+          {% if port_info.results[0].rc == 0 %}
+          'port is open'
+          {% elif port_info.results[0].rc == 1 %}
+          'port is close [OK]'
+          {% endif %}
+
+    - name: port status (if port is open. then stop playbook)
+      meta: end_host # ansible >=2.8v
+      # interrupt for host, if port is open
+      when: port_info.results[0].rc == 0
+
