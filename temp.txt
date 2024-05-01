@@ -1,0 +1,1 @@
+ansible-playbook -i ./hosts/dev_hosts --tags k8s_cri,k8s_check_required_ports,k8s_prerequisites_modules_n_sysctl,k8s_install_kubeadm_kubelet_kubectl,k8s_kube_bootstrap,k8s_approve_certs,k8s_add_network_plugin,k8s_debug_get_all --become-method=su playbook.yml -K -e K8S_DESIRE_STATE=present

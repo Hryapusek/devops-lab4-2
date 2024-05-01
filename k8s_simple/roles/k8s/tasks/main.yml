@@ -45,13 +45,13 @@
   - name: show dbg
     debug:
       msg: "{{ k8s_state_certs_approve.stdout_lines }}"
-  when: inventory_hostname == "master1"
+  when: inventory_hostname == "master"
 
 - name: k8s network plugin
   import_tasks: "./plugins/network/flannel.yml"
   tags:
     - k8s_add_network_plugin
-  when: inventory_hostname == "master1"
+  when: inventory_hostname == "master"
 
 - name: k8s get all
   tags:
@@ -65,5 +65,5 @@
   - name: show dbg
     debug:
       msg: "{{ k8s_state_get_all_info.stdout_lines }}"
-  when: inventory_hostname == "master1"
+  when: inventory_hostname == "master"
 

@@ -17,13 +17,13 @@
       group: root
       mode: '0400'
     run_once: yes
-    when: inventory_hostname == "master1" and
+    when: inventory_hostname == "master" and
           K8S_DESIRE_STATE == "present"
 
   - name: kubeadm init
     import_tasks: ./kubeadm/init.yml
     run_once: yes
-    when: inventory_hostname == "master1" and
+    when: inventory_hostname == "master" and
           K8S_DESIRE_STATE == "present"
 
   - name: kubeadm join
